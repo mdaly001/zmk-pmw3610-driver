@@ -1,0 +1,14 @@
+# Copyright (c) 2024 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: |
+  Charybdis snipe / drag-scroll hold behavior.
+
+  param1 selects the mode:
+    1 = snipe      (pointer slows down for precision)
+    2 = drag-scroll (ball becomes a scroll wheel; only effective while
+                    snipe is also held)
+
+compatible: "zmk,behavior-charybdis-point"
+
+include: one_param.yaml

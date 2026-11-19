@@ -120,6 +120,15 @@ enum pmw3610_attribute {
 
 };
 
+/**
+ * @brief Enable/disable snipe mode (slows the pointer) and drag-scroll mode
+ * (ball becomes a scroll wheel, only while snipe is also active).
+ *
+ * Defined in pmw3610.c; called by the charybdis-point hold behavior.
+ */
+void pmw3610_set_snipe(bool enable);
+void pmw3610_set_dragscroll(bool enable);
+
 #ifdef __cplusplus
 }
 #endif

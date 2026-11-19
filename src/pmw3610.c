@@ -21,6 +21,38 @@ LOG_MODULE_REGISTER(pmw3610, CONFIG_PMW3610_LOG_LEVEL);
 #include <math.h>
 #endif
 
+// --- Snipe / drag-scroll mode (set by the charybdis-point hold behaviors) ---
+// These live in the driver because the trackball report path is the only place
+// that has the live X/Y deltas. The behaviors (which run on the split central,
+// where this driver also lives) flip them via the setters below.
+//
+// The fractional accumulators preserve sub-count motion so a slow roll never
+// dies to integer truncation; they are cleared whenever the mode is released so
+// the next session starts clean.
+bool pmw3610_snipe_active = false;
+bool pmw3610_dragscroll_active = false;
+
+static int32_t snipe_rem_x = 0;
+static int32_t snipe_rem_y = 0;
+static int32_t dragscroll_buf_x = 0;
+static int32_t dragscroll_buf_y = 0;
+
+void pmw3610_set_snipe(bool enable) {
+    pmw3610_snipe_active = enable;
+    if (!enable) {
+        snipe_rem_x = 0;
+        snipe_rem_y = 0;
+    }
+}
+
+void pmw3610_set_dragscroll(bool enable) {
+    pmw3610_dragscroll_active = enable;
+    if (!enable) {
+        dragscroll_buf_x = 0;
+        dragscroll_buf_y = 0;
+    }
+}
+
 //////// Sensor initialization steps definition //////////
 // init is done in non-blocking manner (i.e., async), a //
 // delayable work is defined for this purpose           //
@@ -500,6 +532,58 @@ static int pmw3610_report_data(const struct device *dev) {
         ry = (int16_t)CLAMP((int32_t)lroundf((float)ix * rot_s + (float)iy * rot_c), INT16_MIN, INT16_MAX);
     }
 #endif
+
+    // --- Snipe / drag-scroll (Option B: drag-scroll requires snipe held) ---
+    // Mirrors the QMK Charybdis behaviour. QMK drops the sensor CPI
+    // (400 normal -> 200 snipe -> 100 drag-scroll); we keep CPI fixed at 400
+    // and scale the reported delta instead, which gives the same feel. With
+    // SNIPE_SCALE=50 and DRAGSCROLL_BUFFER=24 this reproduces QMK's 200-DPI
+    // snipe and 100-DPI / buffer-6 drag-scroll at our 400 CPI.
+    if (pmw3610_snipe_active && pmw3610_dragscroll_active) {
+        // Ball becomes a scroll wheel: accumulate the (already rotated) delta
+        // and emit one wheel step per buffer threshold, suppressing the pointer.
+        dragscroll_buf_x += rx;
+        dragscroll_buf_y += ry;
+        dx = 0;
+        dy = 0;
+
+        int32_t ax = dragscroll_buf_x < 0 ? -dragscroll_buf_x : dragscroll_buf_x;
+        int32_t ay = dragscroll_buf_y < 0 ? -dragscroll_buf_y : dragscroll_buf_y;
+        int32_t h = 0, v = 0;
+        if (ax > CONFIG_PMW3610_DRAGSCROLL_BUFFER) {
+            h = dragscroll_buf_x > 0 ? 1 : -1;
+            dragscroll_buf_x = 0;
+        }
+        if (ay > CONFIG_PMW3610_DRAGSCROLL_BUFFER) {
+            v = dragscroll_buf_y > 0 ? 1 : -1;
+            dragscroll_buf_y = 0;
+        }
+        if (h || v) {
+#if CONFIG_PMW3610_REPORT_INTERVAL_MIN > 0
+            last_rpt_time = now;
+#endif
+            if (h) {
+                input_report(dev, INPUT_EV_REL, INPUT_REL_HWHEEL, h, !v, K_NO_WAIT);
+            }
+            if (v) {
+                input_report(dev, INPUT_EV_REL, INPUT_REL_WHEEL, v, true, K_NO_WAIT);
+            }
+        }
+        return err;
+    }
+
+    if (pmw3610_snipe_active) {
+        // Slow the pointer for precision, with a fractional carry so slow rolls
+        // (delta 1) don't vanish to a dead zone.
+        int32_t tx = (int32_t)rx * CONFIG_PMW3610_SNIPE_SCALE + snipe_rem_x;
+        int32_t ty = (int32_t)ry * CONFIG_PMW3610_SNIPE_SCALE + snipe_rem_y;
+        rx = (int16_t)CLAMP(tx / 100, INT16_MIN, INT16_MAX);
+        ry = (int16_t)CLAMP(ty / 100, INT16_MIN, INT16_MAX);
+        snipe_rem_x = tx % 100;
+        snipe_rem_y = ty % 100;
+        dx = 0;
+        dy = 0;
+    }
 
     bool have_x = rx != 0;
     bool have_y = ry != 0;

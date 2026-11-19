@@ -46,6 +46,25 @@ config PMW3610_ROTATE_DEG
     This is a fork-only addition (upstream badjeff/zmk-pmw3610-driver has only
     swap/invert, which can express 90-degree steps but not an arbitrary tilt).
 
+config PMW3610_SNIPE_SCALE
+  int "Snipe-mode pointer scale (percent)"
+  default 50
+  range 1 100
+  help
+    While snipe is active (and drag-scroll is NOT), the pointer delta is
+    multiplied by this percentage. 50 = half speed for precision work,
+    matching the QMK Charybdis 200-DPI snipe at our 400-CPI sensor.
+    Lower = slower / more precise. 100 = no change.
+
+config PMW3610_DRAGSCROLL_BUFFER
+  int "Drag-scroll accumulation buffer (sensor counts)"
+  default 24
+  help
+    While snipe AND drag-scroll are both active, ball movement accumulates
+    and one scroll-wheel step is emitted per BUFFER counts crossed. At our
+    400-CPI sensor, 24 matches the QMK Charybdis feel of a 100-DPI ball
+    with a buffer of 6 (6 * 400/100). Higher = slower, chunkier scroll.
+
 config PMW3610_INIT_POWER_UP_EXTRA_DELAY_MS
   int "Extra power up init delay (ms)"
   default 0
