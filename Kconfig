@@ -56,6 +56,19 @@ config PMW3610_SNIPE_SCALE
     matching the QMK Charybdis 200-DPI snipe at our 400-CPI sensor.
     Lower = slower / more precise. 100 = no change.
 
+config PMW3610_SNIPE_LAYER
+  int "Keymap layer index that activates snipe (-1 = disabled)"
+  default 3
+  range -1 15
+  help
+    When this keymap layer is active, snipe is enabled automatically (in
+    addition to any snipe set by the charybdis-point behavior). This lets
+    snipe "ride" the mouse-button layer: hold the key that brings up the
+    Button layer and the cursor slows while the thumb mouse buttons work.
+
+    Miryoku's Button layer is index 3. Set to -1 to disable layer-driven
+    snipe (snipe then only comes from the charybdis-point behavior).
+
 config PMW3610_DRAGSCROLL_BUFFER
   int "Drag-scroll accumulation buffer (sensor counts)"
   default 24

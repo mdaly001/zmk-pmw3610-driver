@@ -521,7 +521,16 @@ static int pmw3610_report_data(const struct device *dev) {
     // and scale the reported delta instead, which gives the same feel. With
     // SNIPE_SCALE=50 and DRAGSCROLL_BUFFER=24 this reproduces QMK's 200-DPI
     // snipe and 100-DPI / buffer-6 drag-scroll at our 400 CPI.
-    if (pmw3610_snipe_active && pmw3610_dragscroll_active) {
+    // Snipe is active if the charybdis-point behavior set it OR the configured
+    // snipe layer (e.g. Miryoku's Button layer) is currently active -- so snipe
+    // "rides" the mouse-button layer: hold the Button-layer key and the cursor
+    // slows while the thumb mouse buttons work.
+    bool snipe = pmw3610_snipe_active;
+#if CONFIG_PMW3610_SNIPE_LAYER >= 0
+    snipe = snipe || zmk_keymap_layer_active(CONFIG_PMW3610_SNIPE_LAYER);
+#endif
+
+    if (snipe && pmw3610_dragscroll_active) {
         // Ball becomes a scroll wheel: accumulate the (already rotated) delta
         // and emit one wheel step per buffer threshold, suppressing the pointer.
         dragscroll_buf_x += rx;
@@ -559,7 +568,7 @@ static int pmw3610_report_data(const struct device *dev) {
     dragscroll_buf_x = 0;
     dragscroll_buf_y = 0;
 
-    if (pmw3610_snipe_active) {
+    if (snipe) {
         // Slow the pointer for precision, with a fractional carry so slow rolls
         // (delta 1) don't vanish to a dead zone.
         int32_t tx = (int32_t)rx * CONFIG_PMW3610_SNIPE_SCALE + snipe_rem_x;
