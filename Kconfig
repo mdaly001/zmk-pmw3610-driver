@@ -37,10 +37,11 @@ config PMW3610_ROTATE_DEG
     (screen) frame, after SWAP_XY / INVERT_X / INVERT_Y have been applied.
 
     Use this to correct a sensor that is mounted at a slight angle to the
-    ball's natural axes: a positive value rotates the output counter-clockwise
-    (in the swap/invert-corrected frame), which cancels a clockwise cross-axis
-    drift, and vice versa. 0 disables the rotation entirely (no math, no
-    behaviour change).
+    ball's natural axes. On this clone the measured cross-axis drift is
+    counter-clockwise (roll up -> drifts left, roll left -> drifts down,
+    etc.), so a POSITIVE value here straightens the cursor. Verified: +20
+    removes most of the drift in all four directions. 0 disables the
+    rotation entirely (no math, no behaviour change).
 
     This is a fork-only addition (upstream badjeff/zmk-pmw3610-driver has only
     swap/invert, which can express 90-degree steps but not an arbitrary tilt).
