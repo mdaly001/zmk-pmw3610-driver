@@ -28,6 +28,23 @@ config PMW3610_INVERT_X
 config PMW3610_INVERT_Y
   bool "Invert the Y axis of PMW3610 sensor"
 
+config PMW3610_ROTATE_DEG
+  int "Rotate the reported X/Y by this many degrees (applied after swap/invert)"
+  default 0
+  range -90 90
+  help
+    Rotates the reported motion vector by this many degrees in the final
+    (screen) frame, after SWAP_XY / INVERT_X / INVERT_Y have been applied.
+
+    Use this to correct a sensor that is mounted at a slight angle to the
+    ball's natural axes: a positive value rotates the output counter-clockwise
+    (in the swap/invert-corrected frame), which cancels a clockwise cross-axis
+    drift, and vice versa. 0 disables the rotation entirely (no math, no
+    behaviour change).
+
+    This is a fork-only addition (upstream badjeff/zmk-pmw3610-driver has only
+    swap/invert, which can express 90-degree steps but not an arbitrary tilt).
+
 config PMW3610_INIT_POWER_UP_EXTRA_DELAY_MS
   int "Extra power up init delay (ms)"
   default 0

@@ -17,6 +17,10 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(pmw3610, CONFIG_PMW3610_LOG_LEVEL);
 
+#if CONFIG_PMW3610_ROTATE_DEG != 0
+#include <math.h>
+#endif
+
 //////// Sensor initialization steps definition //////////
 // init is done in non-blocking manner (i.e., async), a //
 // delayable work is defined for this purpose           //
@@ -471,6 +475,30 @@ static int pmw3610_report_data(const struct device *dev) {
     // fetch report value
     int16_t rx = (int16_t)CLAMP(dx, INT16_MIN, INT16_MAX);
     int16_t ry = (int16_t)CLAMP(dy, INT16_MIN, INT16_MAX);
+
+#if CONFIG_PMW3610_ROTATE_DEG != 0
+    // Correct for a sensor mounted at a slight angle to the ball's natural
+    // axes. Applied in the final (swap/invert-corrected) screen frame so the
+    // angle the user measures is the angle we rotate by. cos/sin computed
+    // once and cached. Rotation is linear, so rotating the accumulated delta
+    // is equivalent to rotating each sample.
+    {
+        static float rot_c = 1.0f;
+        static float rot_s = 0.0f;
+        static bool rot_ready = false;
+        if (!rot_ready) {
+            float rad = (float)CONFIG_PMW3610_ROTATE_DEG * (float)M_PI / 180.0f;
+            rot_c = cosf(rad);
+            rot_s = sinf(rad);
+            rot_ready = true;
+        }
+        int32_t ix = rx;
+        int32_t iy = ry;
+        rx = (int16_t)CLAMP((int32_t)lroundf((float)ix * rot_c - (float)iy * rot_s), INT16_MIN, INT16_MAX);
+        ry = (int16_t)CLAMP((int32_t)lroundf((float)ix * rot_s + (float)iy * rot_c), INT16_MIN, INT16_MAX);
+    }
+#endif
+
     bool have_x = rx != 0;
     bool have_y = ry != 0;
 
