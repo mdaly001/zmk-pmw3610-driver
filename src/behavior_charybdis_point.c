@@ -18,6 +18,8 @@
  * This is a fork-only addition (badjeff/zmk-pmw3610-driver upstream).
  */
 
+#include <zephyr/devicetree.h>
+
 #if DT_HAS_COMPAT_STATUS_OKAY(zmk_behavior_charybdis_point)
 
 #define DT_DRV_COMPAT zmk_behavior_charybdis_point
