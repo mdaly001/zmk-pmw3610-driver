@@ -487,7 +487,9 @@ static int pmw3610_report_data(const struct device *dev) {
         static float rot_s = 0.0f;
         static bool rot_ready = false;
         if (!rot_ready) {
-            float rad = (float)CONFIG_PMW3610_ROTATE_DEG * (float)M_PI / 180.0f;
+            /* M_PI is not exposed by picolibc under -std=c99; use a literal. */
+            const float k_pi = 3.14159265358979323846f;
+            float rad = (float)CONFIG_PMW3610_ROTATE_DEG * k_pi / 180.0f;
             rot_c = cosf(rad);
             rot_s = sinf(rad);
             rot_ready = true;
