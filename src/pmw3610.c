@@ -22,36 +22,18 @@ LOG_MODULE_REGISTER(pmw3610, CONFIG_PMW3610_LOG_LEVEL);
 #endif
 
 // --- Snipe / drag-scroll mode (set by the charybdis-point hold behaviors) ---
-// These live in the driver because the trackball report path is the only place
-// that has the live X/Y deltas. The behaviors (which run on the split central,
-// where this driver also lives) flip them via the setters below.
-//
-// The fractional accumulators preserve sub-count motion so a slow roll never
-// dies to integer truncation; they are cleared whenever the mode is released so
-// the next session starts clean.
-bool pmw3610_snipe_active = false;
-bool pmw3610_dragscroll_active = false;
+// The mode flags are DEFINED in behavior_charybdis_point.c (so the behavior is
+// a valid device on every half of the split). Here we only read them.
+extern bool pmw3610_snipe_active;
+extern bool pmw3610_dragscroll_active;
 
+// Fractional / accumulation buffers for the report path. Only the report path
+// uses them, so they live here. Cleared whenever the corresponding mode is
+// inactive (see pmw3610_report_data) so each new session starts clean.
 static int32_t snipe_rem_x = 0;
 static int32_t snipe_rem_y = 0;
 static int32_t dragscroll_buf_x = 0;
 static int32_t dragscroll_buf_y = 0;
-
-void pmw3610_set_snipe(bool enable) {
-    pmw3610_snipe_active = enable;
-    if (!enable) {
-        snipe_rem_x = 0;
-        snipe_rem_y = 0;
-    }
-}
-
-void pmw3610_set_dragscroll(bool enable) {
-    pmw3610_dragscroll_active = enable;
-    if (!enable) {
-        dragscroll_buf_x = 0;
-        dragscroll_buf_y = 0;
-    }
-}
 
 //////// Sensor initialization steps definition //////////
 // init is done in non-blocking manner (i.e., async), a //
@@ -572,6 +554,11 @@ static int pmw3610_report_data(const struct device *dev) {
         return err;
     }
 
+    // Not drag-scrolling: drop any stale scroll accumulation so the next
+    // drag-scroll session starts clean.
+    dragscroll_buf_x = 0;
+    dragscroll_buf_y = 0;
+
     if (pmw3610_snipe_active) {
         // Slow the pointer for precision, with a fractional carry so slow rolls
         // (delta 1) don't vanish to a dead zone.
@@ -583,6 +570,9 @@ static int pmw3610_report_data(const struct device *dev) {
         snipe_rem_y = ty % 100;
         dx = 0;
         dy = 0;
+    } else {
+        snipe_rem_x = 0;
+        snipe_rem_y = 0;
     }
 
     bool have_x = rx != 0;
